@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="PADDOCK 11 — registro da equipe de Fórmula 1. CRUD em JavaScript puro consumindo a API REST do professor Fernando Leonid." />
+  <title>PADDOCK 11 - Registro de Equipe</title>
+
+  <!-- Tipografia: display condensada (motorsport), corpo legível e mono para dados de cronometragem -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Saira+Condensed:wght@500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <!-- ====== FAIXA DE CRONOMETRAGEM (signature: pit-wall timing strip) ====== -->
+  <div class="timing" id="timing" role="status" aria-live="polite">
+    <span class="timing__dot" id="timingDot" aria-hidden="true"></span>
+    <span class="timing__state" id="timingState">CONECTANDO</span>
+    <span class="timing__sep">·</span>
+    <span class="timing__label">RECURSO</span>
+    <span class="timing__val" id="timingResource">—</span>
+    <span class="timing__sep">·</span>
+    <span class="timing__label">NO GRID</span>
+    <span class="timing__val" id="timingCount">0</span>
+    <button class="timing__refresh" id="btnRefresh" title="Recarregar grid" aria-label="Recarregar grid">↻</button>
+  </div>
+
+  <!-- ====== CABEÇALHO ====== -->
+  <header class="masthead">
+    <div class="masthead__brand">
+      <span class="masthead__num">11</span>
+      <div>
+        <h1 class="masthead__title">PADDOCK</h1>
+        <p class="masthead__tag">Registro oficial da equipe - pilotos, engenheiros e box</p>
+      </div>
+    </div>
+    <button class="btn btn--primary" id="btnNew">
+      <span class="btn__plus">+</span> Novo membro
+    </button>
+  </header>
+
+  <!-- ====== BARRA DE FERRAMENTAS ====== -->
+  <section class="toolbar" aria-label="Ferramentas do grid">
+    <div class="field-search">
+      <svg class="field-search__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 21l-4.3-4.3M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <input type="search" id="search" placeholder="Buscar por nome, e-mail ou cidade…" aria-label="Buscar membros" autocomplete="off" />
+    </div>
+    <label class="field-sort">
+      <span>Ordenar</span>
+      <select id="sort" aria-label="Ordenar grid">
+        <option value="nome">Nome (A–Z)</option>
+        <option value="nome-desc">Nome (Z–A)</option>
+        <option value="cidade">Cidade</option>
+        <option value="id">Nº de inscrição</option>
+      </select>
+    </label>
+  </section>
+
+  <!-- ====== BANNER DE STATUS / ERRO ====== -->
+  <div class="banner" id="banner" hidden></div>
+
+  <!-- ====== CONTEÚDO ====== -->
+  <main class="grid-wrap">
+    <!-- estado de carregamento -->
+    <div class="state state--loading" id="stateLoading" hidden>
+      <div class="loader" aria-hidden="true"></div>
+      <p>Aquecendo os pneus… buscando o grid na API.</p>
+    </div>
+
+    <!-- estado vazio -->
+    <div class="state state--empty" id="stateEmpty" hidden>
+      <div class="state__mark">P11</div>
+      <h2>Grid vazio</h2>
+      <p>Nenhum membro registrado ainda. Cadastre o primeiro integrante da equipe.</p>
+      <button class="btn btn--primary" id="btnEmptyNew"><span class="btn__plus">+</span> Novo membro</button>
+    </div>
+
+    <!-- estado de erro -->
+    <div class="state state--error" id="stateError" hidden>
+      <div class="state__mark state__mark--alert">!</div>
+      <h2 id="errorTitle">Falha na comunicação</h2>
+      <p id="errorDetail">Não foi possível falar com a API.</p>
+      <button class="btn btn--ghost" id="btnRetry">Tentar novamente</button>
+    </div>
+
+    <!-- grid de cards -->
+    <div class="grid" id="grid"></div>
+  </main>
+
+  <footer class="foot">
+    <span>PADDOCK 11 - projeto frontend · JavaScript puro</span>
+    <span class="foot__sep">·</span>
+    <span>API: prof. Fernando Leonid</span>
+    <span class="foot__sep">·</span>
+    <span>Autor: Marcelo Augusto de Araújo</span>
+    <button class="foot__reset" id="btnReset" hidden>↺ Repor dados de exemplo</button>
+  </footer>
+
+  <!-- ====== MODAL DE FORMULÁRIO (criar/editar) ====== -->
+  <div class="overlay" id="formOverlay" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="formTitle">
+      <div class="modal__head">
+        <h2 class="modal__title" id="formTitle">Novo membro</h2>
+        <button class="modal__close" id="btnCloseForm" aria-label="Fechar">×</button>
+      </div>
+
+      <form id="memberForm" novalidate>
+        <input type="hidden" id="f_id" />
+
+        <fieldset class="fieldset">
+          <legend>Identificação</legend>
+          <div class="form-row">
+            <label class="form-field form-field--wide">
+              <span>Nome <i>*</i></span>
+              <input type="text" id="f_nome" name="nome" required maxlength="120" autocomplete="name" />
+              <small class="form-error" data-for="f_nome"></small>
+            </label>
+          </div>
+          <div class="form-row">
+            <label class="form-field">
+              <span>E-mail <i>*</i></span>
+              <input type="email" id="f_email" name="email" required autocomplete="email" />
+              <small class="form-error" data-for="f_email"></small>
+            </label>
+            <label class="form-field">
+              <span>Celular</span>
+              <input type="tel" id="f_celular" name="celular" inputmode="numeric" maxlength="15" placeholder="11999998888" />
+              <small class="form-error" data-for="f_celular"></small>
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset class="fieldset">
+          <legend>Base / Endereço</legend>
+          <div class="form-row">
+            <label class="form-field form-field--wide">
+              <span>Logradouro</span>
+              <input type="text" id="f_logradouro" name="logradouro" maxlength="160" autocomplete="street-address" />
+            </label>
+            <label class="form-field form-field--narrow">
+              <span>CEP</span>
+              <input type="text" id="f_cep" name="cep" inputmode="numeric" maxlength="9" placeholder="18135300" />
+              <small class="form-error" data-for="f_cep"></small>
+            </label>
+          </div>
+          <div class="form-row">
+            <label class="form-field">
+              <span>Bairro</span>
+              <input type="text" id="f_bairro" name="bairro" maxlength="120" />
+            </label>
+            <label class="form-field">
+              <span>Cidade</span>
+              <input type="text" id="f_cidade" name="cidade" maxlength="120" />
+            </label>
+            <label class="form-field form-field--narrow">
+              <span>UF</span>
+              <input type="text" id="f_estado" name="estado" maxlength="2" placeholder="SP" style="text-transform:uppercase" />
+            </label>
+          </div>
+        </fieldset>
+
+        <div class="modal__foot">
+          <button type="button" class="btn btn--ghost" id="btnCancel">Cancelar</button>
+          <button type="submit" class="btn btn--primary" id="btnSubmit">Salvar membro</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ====== MODAL DE CONFIRMAÇÃO (excluir) ====== -->
+  <div class="overlay" id="confirmOverlay" hidden>
+    <div class="modal modal--sm" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle">
+      <div class="modal__head">
+        <h2 class="modal__title" id="confirmTitle">Remover do grid?</h2>
+      </div>
+      <p class="confirm__text" id="confirmText">Esta ação não pode ser desfeita.</p>
+      <div class="modal__foot">
+        <button type="button" class="btn btn--ghost" id="btnConfirmNo">Manter</button>
+        <button type="button" class="btn btn--danger" id="btnConfirmYes">Remover</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== TOASTS ====== -->
+  <div class="toasts" id="toasts" aria-live="polite" aria-atomic="false"></div>
+
+  <!-- Scripts em JavaScript puro, carregados em ordem de dependência -->
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
