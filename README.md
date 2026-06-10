@@ -172,13 +172,13 @@ Sugestão de formato Markdown para o README final:
 
 ## Deploy 
 
-🔗 [Acessar no GitHub Pages](URL_DO_DEPLOY) 
+[Acessar no GitHub Pages]((https://marceloaraujo-acad.github.io/paddock11/)) 
 
   
 
 ## Vídeo pitch 
 
-🎬 [Assistir ao pitch](URL_DO_VIDEO) 
+[Assistir ao pitch](https://youtu.be/6MUKtysvC9Q) 
 
 8. Estrutura básica do projeto 
 
